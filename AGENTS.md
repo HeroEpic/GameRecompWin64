@@ -1,6 +1,12 @@
 # AGENTS.md
 
-Project recompiles legacy 32-bit Windows games into native 64-bit executables via static recompilation. It is a general framework, not a single-game port. Long-term targets: modular renderer (Vulkan), Wine/Proton compatibility, Linux/ARM64 ports.
+Project recompiles legacy 32-bit Windows games into native 64-bit executables via static recompilation. It is a general framework, not a single-game port.
+
+**Priorities (highest to lowest):**
+1. Transform 32-bit games into native 64-bit executables via recompilation. This is the primary goal.
+2. Add a Vulkan renderer. Secondary to recompilation; do not let renderer work block or delay the core recompilation pipeline.
+
+Other long-term targets: Wine/Proton compatibility, Linux/ARM64 ports.
 
 ## Build (CMake + MSVC on Windows, Clang/GCC on Linux)
 
