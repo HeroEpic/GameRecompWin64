@@ -1,56 +1,74 @@
 # AGENTS.md
 
-Project recompiles legacy 32-bit Windows games into native 64-bit executables via static recompilation. It is a general framework, not a single-game port.
+Static recompilation framework for converting legacy 32-bit Windows games into native 64-bit executables. General framework, not game-specific. Inspired by modern recompilation efforts (e.g. Zelda 64 recomp) but designed as a reusable platform.
 
-**Priorities (highest to lowest):**
-1. Transform 32-bit games into native 64-bit executables via recompilation. This is the primary goal.
-2. Add a Vulkan renderer. Secondary to recompilation; do not let renderer work block or delay the core recompilation pipeline.
+## Toolchain
 
-Other long-term targets: Wine/Proton compatibility, Linux/ARM64 ports.
+- **Compiler**: MinGW-w64 (GCC targeting Windows x64). Use this instead of MSVC.
+- **Reverse engineering**: radare2 (`r2`, `rabin2`, etc.) for disassembly and analysis of original 32-bit executables. Drives the `tools/` reverse-engineering utilities.
 
-## Build (CMake + MSVC on Windows, Clang/GCC on Linux)
+## Build
 
-```sh
+CMake + MinGW-w64 (Windows) or Clang/GCC (Linux).
+
+```
 cmake -S . -B build
 cmake --build build --config Release
 ```
 
-Or via presets (if `CMakePresets.json` is present):
+Or via presets:
 
-```sh
+```
 cmake --preset release
 cmake --build --preset release
 ```
 
-Main binary: `GameRecomp.exe` (Windows x64).
+Primary output: `GameRecomp.exe` (Windows x64). Future: Linux x64, Linux ARM64, Android ARM64.
 
 ## Test
 
-```sh
+```
 ctest --test-dir build
 ```
 
-Behavioral validation is not automated: compare execution traces against the original executable; verify save files, game logic, physics, render output. Each recompiled function must be validated against the original executable before being considered complete.
+Behavioral validation is non-negotiable and goes beyond unit tests:
+- Compare execution traces against the original executable.
+- Verify save files, game logic, physics, and rendering outputs.
+- Regression tests must confirm behavior is identical to the original after recompilation.
 
-## Lint / format
+A recompiled function is not complete until validated against the original executable.
 
-- Format: `clang-format -i <files>`
-- Static analysis: `clang-tidy`
-- Optional: `cppcheck .`
+## Lint / Format
 
-## Layout (entrypoints)
+```
+clang-format -i <files>
+clang-tidy
+cppcheck .
+```
 
-- `src/core/` — recompiled game logic
-- `src/engine/` — runtime framework
+## Layout
+
+- `src/core/` — recompiled game logic (the ported 32-bit code)
+- `src/engine/` — runtime framework hosting the recompiled logic
 - `src/renderer/` — Vulkan renderer (graphics backend only)
+- `src/audio/`, `src/input/`, `src/platform/` — platform abstraction layers
 - `src/main.cpp` — entrypoint
-- `tools/` — reverse-engineering utilities
+- `include/` — public headers
+- `tools/` — reverse-engineering utilities (not shipped in runtime)
 - `tests/` — unit + regression tests
+- `assets/`, `docs/` — data and documentation
 
-## Critical constraints (project-specific, easy to violate by default)
+## Architectural constraints (read before editing)
 
-- **Behavioral accuracy trumps optimization.** Any optimization must preserve original game logic. Regressions against original behavior block completion.
-- **Decompiled code is a reference, not a destination.** Rewrite into clean, maintainable C++; do not ship raw decompiler output.
-- **Renderer is graphics-only.** Gameplay logic must stay platform-independent. Do not couple gameplay to Vulkan or any specific backend.
-- **Avoid Windows-specific APIs.** Use cross-platform libs (SDL3 for windowing/input/audio) even on Windows, to keep Linux/ARM64 ports viable.
-- **Keep modules modular.** Alternative renderers and native Linux builds must be addable without major rewrites.
+- **Behavioral fidelity > optimization.** Any optimization MUST preserve original game logic. When in doubt, match the original.
+- **Decompiled code is a reference, not the deliverable.** Rewrite into clean, maintainable C++ rather than shipping raw decompiler output.
+- **Graphics backend is the only thing the Vulkan renderer replaces.** Gameplay logic stays platform-independent and should never call renderer APIs directly.
+- **Avoid Windows-specific APIs.** Prefer cross-platform libraries (SDL3 for windowing/input/audio) so future Linux/ARM64/Android ports don't require rewrites.
+- **Stay modular.** Alternative rendering backends or native Linux builds must be addable without major rewrites — respect the existing layer boundaries in `src/`.
+- **Per-function validation against the original executable is the definition of done.**
+
+## Gotchas
+
+- `src/core/` code may look decompiler-generated; do not assume it follows the rest of the codebase's style. Clean it up when touching it.
+- Renderer changes must not leak into core logic. If you find yourself editing `src/core/` for a graphics task, reconsider.
+- Treat any "optimization" opportunity in `src/core/` as suspicious unless it provably preserves behavior.
