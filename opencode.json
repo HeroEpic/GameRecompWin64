@@ -5,6 +5,11 @@
       "type": "local",
       "command": ["r2pm", "-r", "r2mcp"],
       "enabled": true
+    },
+    "search": {
+      "type": "local",
+      "command": ["python", "-m", "mcp_server_fetch"],
+      "enabled": true
     }
   }
 }
